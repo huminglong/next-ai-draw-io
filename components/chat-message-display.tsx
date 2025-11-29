@@ -41,9 +41,32 @@ export function ChatMessageDisplay({
     const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
     const [copyFailedMessageId, setCopyFailedMessageId] = useState<string | null>(null);
 
+    /**
+     * 复制文本到剪贴板
+     * 使用多种方法确保兼容性：优先使用 Clipboard API，降级使用 execCommand
+     */
     const copyMessageToClipboard = async (messageId: string, text: string) => {
         try {
-            await navigator.clipboard.writeText(text);
+            // 优先使用现代 Clipboard API（需要 HTTPS 或 localhost）
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                await navigator.clipboard.writeText(text);
+            } else {
+                // 降级方案：使用传统的 execCommand 方法
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                // 将元素移出可视区域，避免页面跳动
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                textArea.style.top = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (!successful) {
+                    throw new Error('execCommand copy failed');
+                }
+            }
             setCopiedMessageId(messageId);
             setTimeout(() => setCopiedMessageId(null), 2000);
         } catch (err) {
@@ -207,8 +230,8 @@ export function ChatMessageDisplay({
                             )}
                             <div
                                 className={`px-4 py-2 whitespace-pre-wrap text-sm rounded-lg max-w-[85%] break-words ${message.role === "user"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "bg-muted text-muted-foreground"
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-muted text-muted-foreground"
                                     }`}
                             >
                                 {message.parts?.map((part: any, index: number) => {
